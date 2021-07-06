@@ -105,9 +105,9 @@
                 return callback(null, []);
             }
             nodebb_ldap.adminClient((err, adminClient) => {
-                //if (err) {
-                //    return callback(nullerr);
-                //}
+                if (err) {
+                    return callback(err);
+                }
                 var groups_search = {
                     filter: master_config.groups_query,
                     scope: 'sub',
@@ -181,7 +181,7 @@
                                 filter: master_config.user_query.replace('%username%', username),
                                 sizeLimit: 1,
                                 scope: 'sub',
-                                attributes: ['dn', 'sAMAccountName', 'sn', 'mail', 'uid', //these fields are mandatory
+                                attributes: ['dn', 'sAMAccountName', 'sn', 'mail', 'userPrincipalName', //these fields are mandatory
                                     // optional fields. used to create the user id/fullname
                                     'givenName', 'displayName',
                                 ]
@@ -264,7 +264,7 @@
             winston.verbose("[LDAP] fullname: " + fullname)
             winston.verbose("[LDAP] username: " + username)
             winston.verbose("[LDAP] email: " + email)
-            nodebb_ldap.getUserByLdapUid(profile.uid, (err, dbUser) => {
+            nodebb_ldap.getUserByLdapUid(profile.userPrincipalName, (err, dbUser) => {
                 if (err) {
                     return callback(err);
                 }
@@ -272,7 +272,7 @@
                     // user exists
                     // now we check the user groups
                     winston.verbose("[LDAP] user exists")
-                    return nodebb_ldap.postLogin(dbUser.uid, profile.uid, callback);
+                    return nodebb_ldap.postLogin(dbUser.uid, profile.userPrincipalName, callback);
                 } else {
                     // New User
                     winston.verbose("[LDAP] user does not exists")
@@ -290,10 +290,11 @@
                             user.setUserField(uid, 'email:confirmed', 1);
                         }
                         user.setUserFields(uid, {
-                            'nodebbldap:uid:': profile.uid
+                            'nodebbldap:uid:': profile.userPrincipalName
                         });
-                        db.setObjectField('ldapid:uid', profile.uid, uid)
-                        return nodebb_ldap.postLogin(uid, profile.uid, callback);
+                        db.setObjectField('ldapid:profile', profile, profile)
+                        db.setObjectField('ldapid:uid', profile.userPrincipalName, uid)
+                        return nodebb_ldap.postLogin(uid, profile.userPrincipalName, callback);
                     });
                 }
             });
